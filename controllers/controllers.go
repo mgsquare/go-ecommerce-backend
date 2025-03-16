@@ -11,6 +11,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/mgsquare/go-ecommerce/database"
 	"github.com/mgsquare/go-ecommerce/models"
+	"github.com/mgsquare/go-ecommerce/tokens"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -55,7 +56,7 @@ func SignUp() gin.HandlerFunc {
 			return
 		}
 
-		validationErr := validate.Struct(user)
+		validationErr := Validate.Struct(user)
 
 		if validationErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": validationErr})
@@ -98,7 +99,7 @@ func SignUp() gin.HandlerFunc {
 		user.Updated_At, _ = time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 		user.ID = primitive.NewObjectID()
 		user.User_Id = user.ID.Hex()
-		token, refreshtoken, _ := generate.TokenGenerator(*user.Email, *user.First_Name, *user.Last_Name, user.User_Id)
+		token, refreshtoken, _ := tokens.TokenGenerator(*user.Email, *user.First_Name, *user.Last_Name, user.User_Id)
 		user.Token = &token
 		user.Refresh_Token = &refreshtoken
 		user.UserCart = make([]models.ProductUser, 0)
@@ -138,17 +139,19 @@ func Login() gin.HandlerFunc {
 			fmt.Println(msg)
 			return
 		}
-		token, refreshToken, _ := generate.TokenGenerator(*&founduser.Email, *founduser.First_Name, *founduser.Last_Name, *&founduser.User_Id)
+		token, refreshToken, _ := tokens.TokenGenerator(*founduser.Email, *founduser.First_Name, *founduser.Last_Name, *&founduser.User_Id)
 		defer cancel()
 
-		generate.UpdateAllToken(token, refreshToken, founduser.User_Id)
+		tokens.UpdateAllTokens(token, refreshToken, founduser.User_Id)
 		c.JSON(http.StatusFound, founduser)
 
 	}
 }
 
 func ProductViewerAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
 
+	}
 }
 
 func SearchProduct() gin.HandlerFunc {
@@ -167,7 +170,7 @@ func SearchProduct() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
-		defer cursor.Close()
+		defer cursor.Close(ctx)
 		if err := cursor.Err(); err != nil {
 			log.Println(err)
 			c.IndentedJSON(400, "invalid")
