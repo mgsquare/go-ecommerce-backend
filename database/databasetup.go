@@ -18,6 +18,10 @@ func DBSet() *mongo.Client {
 
 	client, err := mongo.Connect(ctx, clientOption)
 
+	if err != nil {
+		log.Fatalf("could not connect to mongo db %v:", err)
+	}
+
 	err = client.Ping(context.TODO(), nil)
 	if err != nil {
 		log.Fatalf("could not connect to mongo db %v:", err)
