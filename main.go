@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -13,13 +14,15 @@ import (
 )
 
 func main() {
+	gin.SetMode(gin.ReleaseMode)
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8000"
 	}
 	app := controllers.NewApplication(database.ProductData(database.Client, "Products"), database.UserData(database.Client, "Users"))
-
+	fmt.Println("Server started on port: ", port)
 	router := gin.New()
+
 	router.Use(gin.Logger())
 	routes.UserRoutes(router)
 	router.Use(middleware.Authentication())
@@ -33,4 +36,5 @@ func main() {
 	router.GET("/cartcheckout", app.BuyFromCart())
 	router.GET("/instantbuy", app.InstantBuy())
 	log.Fatal(router.Run(":" + port))
+
 }

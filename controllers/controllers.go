@@ -36,8 +36,8 @@ func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
 	valid := true
 	msg := ""
 	if err != nil {
-		msg = "Login or Password incorrect"
-		valid = true
+		msg = "Password incorrect"
+		valid = false
 	}
 	return valid, msg
 }
@@ -119,12 +119,14 @@ func Login() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
-		var user, founduser models.User
+		var user models.User
+		var founduser models.User
 		if err := c.BindJSON(&user); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err})
+			return
 		}
 
-		err := UserCollection.FindOne(ctx, bson.M{"email": user.Email}).Decode((&founduser))
+		err := UserCollection.FindOne(ctx, bson.M{"email": user.Email}).Decode(&founduser)
 		defer cancel()
 
 		if err != nil {
@@ -139,17 +141,47 @@ func Login() gin.HandlerFunc {
 			fmt.Println(msg)
 			return
 		}
-		token, refreshToken, _ := tokens.TokenGenerator(*founduser.Email, *founduser.First_Name, *founduser.Last_Name, *&founduser.User_Id)
+		token, refreshToken, _ := tokens.TokenGenerator(*founduser.Email, *founduser.First_Name, *founduser.Last_Name, founduser.User_Id)
 		defer cancel()
 
 		tokens.UpdateAllTokens(token, refreshToken, founduser.User_Id)
-		c.JSON(http.StatusFound, founduser)
+		c.JSON(http.StatusOK, founduser)
 
 	}
 }
 
 func ProductViewerAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+		defer cancel()
+		var products models.Product
+
+		if err := c.BindJSON(&products); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		count, err := ProductCollection.CountDocuments(ctx, bson.M{"product_name": *products.Product_Name})
+
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "not inserted"})
+
+			return
+		}
+		if count > 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "this product is already listed"})
+			return
+		}
+
+		products.Product_ID = primitive.NewObjectID()
+		_, err = ProductCollection.InsertOne(ctx, products)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "not inserted"})
+
+			return
+		}
+		defer cancel()
+		c.JSON(http.StatusOK, "succesfully added")
 
 	}
 }
@@ -183,42 +215,39 @@ func SearchProduct() gin.HandlerFunc {
 
 func SearchProductByQuery() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var SearchProducts []models.Product
+		var searchproducts []models.Product
 		queryParam := c.Query("name")
 
 		if queryParam == "" {
 			log.Println("query is empty")
-			c.Header("content-type", "application/json")
-			c.JSON(http.StatusNotFound, gin.H{"error": "Invalid search index"})
+			c.Header("Content-Type", "application/json")
+			c.JSON(http.StatusNotFound, gin.H{"Error": "Invalid Search Index"})
 			c.Abort()
 			return
 		}
 		var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 		defer cancel()
-
-		searchQueryDB, err := ProductCollection.Find(ctx, bson.M{"product_name": bson.M{"$regex": queryParam}})
-
+		searchquerydb, err := ProductCollection.Find(ctx, bson.M{"product_name": bson.M{"$regex": queryParam}})
 		if err != nil {
-			c.IndentedJSON(404, "something went wrong while fetching the data")
+			c.IndentedJSON(404, "something went wrong in fetching the dbquery")
 			return
 		}
-		err = searchQueryDB.All(ctx, &SearchProducts)
+		err = searchquerydb.All(ctx, &searchproducts)
 		if err != nil {
 			log.Println(err)
 			c.IndentedJSON(400, "invalid")
 			return
 		}
-
-		defer searchQueryDB.Close(ctx)
-
-		if err := searchQueryDB.Err(); err != nil {
+		defer searchquerydb.Close(ctx)
+		if err := searchquerydb.Err(); err != nil {
 			log.Println(err)
 			c.IndentedJSON(400, "invalid request")
 			return
 		}
 
 		defer cancel()
-		c.IndentedJSON(200, SearchProducts)
+		c.IndentedJSON(200, searchproducts)
+
 	}
 
 }

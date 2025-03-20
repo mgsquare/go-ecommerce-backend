@@ -14,7 +14,7 @@ func DBSet() *mongo.Client {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	clientOption := options.Client().ApplyURI("mongodb://localhost:27017")
+	clientOption := options.Client().ApplyURI("mongodb://madandb:1234@localhost:27017")
 
 	client, err := mongo.Connect(ctx, clientOption)
 
