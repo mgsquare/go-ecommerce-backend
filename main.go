@@ -19,7 +19,7 @@ func main() {
 	if port == "" {
 		port = "8000"
 	}
-	app := controllers.NewApplication(database.ProductData(database.Client, "Products"), database.UserData(database.Client, "Users"))
+	app := controllers.NewApplication(database.ProductData(database.Client, "Product"), database.UserData(database.Client, "User"))
 	fmt.Println("Server started on port: ", port)
 	router := gin.New()
 

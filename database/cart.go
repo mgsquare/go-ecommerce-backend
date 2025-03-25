@@ -20,6 +20,7 @@ var (
 	ErrCantRemoveItem       = errors.New("cannot remove this item from the cart")
 	ErrCantGetItem          = errors.New("was unable to get the item from the cart")
 	ErrCantBuyCartItem      = errors.New("cannot update the purchase")
+	ErrEmptyCart            = errors.New("cannot checkout empty cart")
 )
 
 func AddProductToCart(ctx context.Context, prodCollection, userCollection *mongo.Collection, productID primitive.ObjectID, userID string) error {
@@ -115,7 +116,9 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 		price := userItem["total"]
 		totalPrice = price.(int32)
 	}
-
+	if totalPrice == 0 {
+		return ErrEmptyCart
+	}
 	orderCart.Price = int(totalPrice)
 
 	filter := bson.D{{Key: "_id", Value: id}}
@@ -141,7 +144,7 @@ func BuyItemFromCart(ctx context.Context, userCollection *mongo.Collection, user
 
 	usercart_empty := make([]models.ProductUser, 0)
 
-	filter3 := bson.D{primitive.E{Key: "id", Value: id}}
+	filter3 := bson.D{primitive.E{Key: "_id", Value: id}}
 	update3 := bson.D{{Key: "$set", Value: bson.D{primitive.E{Key: "usercart", Value: usercart_empty}}}}
 
 	_, err = userCollection.UpdateOne(ctx, filter3, update3)

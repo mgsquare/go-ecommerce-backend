@@ -69,7 +69,7 @@ func (app *Application) RemoveItem() gin.HandlerFunc {
 			_ = c.AbortWithError(http.StatusBadRequest, errors.New("product id is empty"))
 			return
 		}
-		userQueryID := c.Query("id")
+		userQueryID := c.Query("userID")
 		if userQueryID == "" {
 			log.Println("user id is empty")
 
@@ -173,7 +173,8 @@ func (app *Application) BuyFromCart() gin.HandlerFunc {
 
 		err := database.BuyItemFromCart(ctx, app.userCollection, userQueryID)
 		if err != nil {
-			c.IndentedJSON(http.StatusInternalServerError, err)
+			c.IndentedJSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 		c.IndentedJSON(200, "Successfully placed the order")
 
@@ -190,7 +191,7 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 			_ = c.AbortWithError(http.StatusBadRequest, errors.New("product id is empty"))
 			return
 		}
-		userQueryID := c.Query("id")
+		userQueryID := c.Query("userID")
 		if userQueryID == "" {
 			log.Println("user id is empty")
 
